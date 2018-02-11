@@ -17,6 +17,9 @@ go_library(
     srcs = ["main.go"],
     importpath = "k8s.io/kubernetes/test/images/no-snat-test",
     deps = [
+        "//pkg/kubectl/cmd/util:go_default_library",
+        "//pkg/version/verflag:go_default_library",
+        "//vendor/github.com/spf13/cobra:go_default_library",
         "//vendor/github.com/spf13/pflag:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/util/flag:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/util/logs:go_default_library",

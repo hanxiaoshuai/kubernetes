@@ -20,7 +20,12 @@ import (
 	"fmt"
 	"io"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	"k8s.io/kubernetes/pkg/kubectl"
+	kubectlscheme "k8s.io/kubernetes/pkg/kubectl/scheme"
+	printersinternal "k8s.io/kubernetes/pkg/printers/internalversion"
 )
 
 // ResourcePrinter is an interface that knows how to print runtime objects.
@@ -75,6 +80,45 @@ type PrintOptions struct {
 
 	// indicates if it is OK to ignore missing keys for rendering an output template.
 	AllowMissingKeys bool
+}
+
+// PrinterForOptions returns the printer for the outputOptions (if given) or
+// returns the default printer for the command.
+func (options *PrintOptions) PrinterForOptions() (ResourcePrinter, error) {
+	// TODO: used by the custom column implementation and the name implementation, break this dependency
+	decoders := []runtime.Decoder{kubectlscheme.Codecs.UniversalDecoder(), unstructured.UnstructuredJSONScheme}
+	encoder := kubectlscheme.Codecs.LegacyCodec(kubectlscheme.Registry.EnabledVersions()...)
+
+	printer, err := GetStandardPrinter(kubectlscheme.Scheme, encoder, decoders, *options)
+	if err != nil {
+		return printer, nil
+	}
+
+	// we try to convert to HumanReadablePrinter, if return ok, it must be no generic
+	// we execute AddHandlers() here before maybeWrapSortingPrinter so that we don't
+	// need to convert to delegatePrinter again then invoke AddHandlers()
+	// TODO this looks highly questionable.  human readable printers are baked into code.  This can just live in the definition of the handler itself
+	// TODO or be registered there
+	if humanReadablePrinter, ok := printer.(PrintHandler); ok {
+		printersinternal.AddHandlers(humanReadablePrinter)
+	}
+
+	printer = maybeWrapSortingPrinter(printer, *options)
+
+	// wrap the printer in a versioning printer that understands when to convert and when not to convert
+	printer = NewVersionedPrinter(printer, legacyscheme.Scheme, legacyscheme.Scheme, kubectlscheme.Versions...)
+
+	return printer, nil
+}
+
+func maybeWrapSortingPrinter(printer ResourcePrinter, printOpts PrintOptions) ResourcePrinter {
+	if len(printOpts.SortBy) != 0 {
+		return &kubectl.SortingPrinter{
+			Delegate:  printer,
+			SortField: fmt.Sprintf("{%s}", printOpts.SortBy),
+		}
+	}
+	return printer
 }
 
 // Describer generates output for the named resource or an error

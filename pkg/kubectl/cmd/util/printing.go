@@ -23,14 +23,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/kubectl"
 	"k8s.io/kubernetes/pkg/kubectl/cmd/templates"
-	kubectlscheme "k8s.io/kubernetes/pkg/kubectl/scheme"
 	"k8s.io/kubernetes/pkg/printers"
 	printersinternal "k8s.io/kubernetes/pkg/printers/internalversion"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/kubernetes/pkg/api/legacyscheme"
 )
 
@@ -123,41 +120,12 @@ func PrintSuccess(shortOutput bool, out io.Writer, obj runtime.Object, dryRun bo
 // PrintObject prints a single object based on the default command options
 // TODO this should go away once commands can embed the PrintOptions instead
 func PrintObject(cmd *cobra.Command, obj runtime.Object, out io.Writer) error {
-	printer, err := PrinterForOptions(ExtractCmdPrintOptions(cmd, false))
+	printOpts := ExtractCmdPrintOptions(cmd, false)
+	printer, err := printOpts.PrinterForOptions()
 	if err != nil {
 		return err
 	}
 	return printer.PrintObj(obj, out)
-}
-
-// PrinterForOptions returns the printer for the outputOptions (if given) or
-// returns the default printer for the command.
-// TODO this should become a function on the PrintOptions struct
-func PrinterForOptions(options *printers.PrintOptions) (printers.ResourcePrinter, error) {
-	// TODO: used by the custom column implementation and the name implementation, break this dependency
-	decoders := []runtime.Decoder{kubectlscheme.Codecs.UniversalDecoder(), unstructured.UnstructuredJSONScheme}
-	encoder := kubectlscheme.Codecs.LegacyCodec(kubectlscheme.Registry.EnabledVersions()...)
-
-	printer, err := printers.GetStandardPrinter(kubectlscheme.Scheme, encoder, decoders, *options)
-	if err != nil {
-		return nil, err
-	}
-
-	// we try to convert to HumanReadablePrinter, if return ok, it must be no generic
-	// we execute AddHandlers() here before maybeWrapSortingPrinter so that we don't
-	// need to convert to delegatePrinter again then invoke AddHandlers()
-	// TODO this looks highly questionable.  human readable printers are baked into code.  This can just live in the definition of the handler itself
-	// TODO or be registered there
-	if humanReadablePrinter, ok := printer.(printers.PrintHandler); ok {
-		printersinternal.AddHandlers(humanReadablePrinter)
-	}
-
-	printer = maybeWrapSortingPrinter(printer, *options)
-
-	// wrap the printer in a versioning printer that understands when to convert and when not to convert
-	printer = printers.NewVersionedPrinter(printer, legacyscheme.Scheme, legacyscheme.Scheme, kubectlscheme.Versions...)
-
-	return printer, nil
 }
 
 // ExtractCmdPrintOptions parses printer specific commandline args and
@@ -222,16 +190,6 @@ func ExtractCmdPrintOptions(cmd *cobra.Command, withNamespace bool) *printers.Pr
 	options.OutputFormatArgument = templateFile
 
 	return options
-}
-
-func maybeWrapSortingPrinter(printer printers.ResourcePrinter, printOpts printers.PrintOptions) printers.ResourcePrinter {
-	if len(printOpts.SortBy) != 0 {
-		return &kubectl.SortingPrinter{
-			Delegate:  printer,
-			SortField: fmt.Sprintf("{%s}", printOpts.SortBy),
-		}
-	}
-	return printer
 }
 
 // ValidResourceTypeList returns a multi-line string containing the valid resources. May

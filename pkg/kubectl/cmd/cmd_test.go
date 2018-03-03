@@ -463,7 +463,8 @@ func Example_printPodShowTerminated() {
 	if errs != nil {
 		fmt.Printf("Unexpected filter error: %v\n", errs)
 	}
-	printer, err := cmdutil.PrinterForOptions(cmdutil.ExtractCmdPrintOptions(cmd, false))
+	printOpts := cmdutil.ExtractCmdPrintOptions(cmd, false)
+	printer, err := printOpts.PrinterForOptions()
 	if err != nil {
 		fmt.Printf("Unexpected printer get error: %v\n", errs)
 	}

@@ -154,7 +154,8 @@ func (o *ConvertOptions) Complete(f cmdutil.Factory, out io.Writer, cmd *cobra.C
 		// TODO: once printing is abstracted, this should be handled at flag declaration time
 		cmd.Flags().Set("output", outputFormat)
 	}
-	o.printer, err = cmdutil.PrinterForOptions(cmdutil.ExtractCmdPrintOptions(cmd, false))
+	printOpts := cmdutil.ExtractCmdPrintOptions(cmd, false)
+	o.printer, err = printOpts.PrinterForOptions()
 	return err
 }
 

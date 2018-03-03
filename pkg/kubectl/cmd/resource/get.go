@@ -251,7 +251,7 @@ func (options *GetOptions) Run(f cmdutil.Factory, cmd *cobra.Command, args []str
 	}
 
 	printOpts := cmdutil.ExtractCmdPrintOptions(cmd, options.AllNamespaces)
-	printer, err := cmdutil.PrinterForOptions(printOpts)
+	printer, err := printOpts.PrinterForOptions()
 	if err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func (options *GetOptions) Run(f cmdutil.Factory, cmd *cobra.Command, args []str
 				updatePrintOptionsForOpenAPI(f, mapping, printOpts)
 			}
 
-			printer, err = cmdutil.PrinterForOptions(printOpts)
+			printer, err = printOpts.PrinterForOptions()
 			if err != nil {
 				if !errs.Has(err.Error()) {
 					errs.Insert(err.Error())
@@ -547,7 +547,7 @@ func (options *GetOptions) watch(f cmdutil.Factory, cmd *cobra.Command, args []s
 	info := infos[0]
 	mapping := info.ResourceMapping()
 	printOpts := cmdutil.ExtractCmdPrintOptions(cmd, options.AllNamespaces)
-	printer, err := cmdutil.PrinterForOptions(printOpts)
+	printer, err := printOpts.PrinterForOptions()
 	if err != nil {
 		return err
 	}

@@ -1018,7 +1018,9 @@ func deleteProvisionedVolumesAndDisks(c clientset.Interface, pvs []*v1.Persisten
 }
 
 func getRandomCloudZone(c clientset.Interface) string {
-	zones, err := framework.GetClusterZones(c)
+	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	zones, err := framework.GetClusterZones(nodes)
 	Expect(err).ToNot(HaveOccurred())
 	// return "" in case that no node has zone label
 	zone, _ := zones.PopAny()

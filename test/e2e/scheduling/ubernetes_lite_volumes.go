@@ -185,7 +185,9 @@ func PodsUseStaticPVsOrFail(f *framework.Framework, podCount int, image string) 
 	c := f.ClientSet
 	ns := f.Namespace.Name
 
-	zones, err := getZoneNames(c)
+	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	zoneNames, err := framework.GetClusterZones(nodes)
 	Expect(err).NotTo(HaveOccurred())
 
 	By("Creating static PVs across zones")
@@ -206,7 +208,7 @@ func PodsUseStaticPVsOrFail(f *framework.Framework, podCount int, image string) 
 			Expect(err).NotTo(HaveOccurred())
 		}
 	}()
-
+	zones := zoneNames.List()
 	for i, config := range configs {
 		zone := zones[i%len(zones)]
 		config.pvSource, err = framework.CreatePVSource(zone)

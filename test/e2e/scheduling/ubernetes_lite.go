@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	clientset "k8s.io/client-go/kubernetes"
 	kubeletapis "k8s.io/kubernetes/pkg/kubelet/apis"
@@ -109,9 +108,11 @@ func SpreadServiceOrFail(f *framework.Framework, replicaCount int, image string)
 	Expect(err).NotTo(HaveOccurred())
 
 	// Now make sure they're spread across zones
-	zoneNames, err := getZoneNames(f.ClientSet)
+	nodes, err := f.ClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(checkZoneSpreading(f.ClientSet, pods, zoneNames)).To(Equal(true))
+	zoneNames, err := framework.GetClusterZones(nodes)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(checkZoneSpreading(f.ClientSet, pods, zoneNames.List())).To(Equal(true))
 }
 
 // Find the name of the zone in which a Node is running
@@ -125,29 +126,17 @@ func getZoneNameForNode(node v1.Node) (string, error) {
 		node.Name, kubeletapis.LabelZoneFailureDomain)
 }
 
-// TODO (verult) Merge with framework.GetClusterZones()
-// Find the names of all zones in which we have nodes in this cluster.
-func getZoneNames(c clientset.Interface) ([]string, error) {
-	zoneNames := sets.NewString()
-	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, node := range nodes.Items {
-		zoneName, err := getZoneNameForNode(node)
-		Expect(err).NotTo(HaveOccurred())
-		zoneNames.Insert(zoneName)
-	}
-	return zoneNames.List(), nil
-}
-
 // Return the number of zones in which we have nodes in this cluster.
 func getZoneCount(c clientset.Interface) (int, error) {
-	zoneNames, err := getZoneNames(c)
+	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return -1, err
 	}
-	return len(zoneNames), nil
+	zoneNames, err := framework.GetClusterZones(nodes)
+	if err != nil {
+		return -1, err
+	}
+	return len(zoneNames.List()), nil
 }
 
 // Find the name of the zone in which the pod is scheduled
@@ -238,7 +227,9 @@ func SpreadRCOrFail(f *framework.Framework, replicaCount int32, image string) {
 	Expect(err).NotTo(HaveOccurred())
 
 	// Now make sure they're spread across zones
-	zoneNames, err := getZoneNames(f.ClientSet)
+	nodes, err := f.ClientSet.CoreV1().Nodes().List(metav1.ListOptions{})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(checkZoneSpreading(f.ClientSet, pods, zoneNames)).To(Equal(true))
+	zoneNames, err := framework.GetClusterZones(nodes)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(checkZoneSpreading(f.ClientSet, pods, zoneNames.List())).To(Equal(true))
 }

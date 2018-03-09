@@ -339,10 +339,11 @@ func SkipUnlessProviderIs(supportedProviders ...string) {
 }
 
 func SkipUnlessMultizone(c clientset.Interface) {
-	zones, err := GetClusterZones(c)
+	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		Skipf("Error listing cluster zones")
 	}
+	zones, _ := GetClusterZones(nodes)
 	if zones.Len() <= 1 {
 		Skipf("Requires more than one zone")
 	}
@@ -5192,18 +5193,19 @@ func WaitForPersistentVolumeClaimDeleted(c clientset.Interface, ns string, pvcNa
 	return fmt.Errorf("PersistentVolumeClaim %s is not removed from the system within %v", pvcName, timeout)
 }
 
-func GetClusterZones(c clientset.Interface) (sets.String, error) {
-	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Error getting nodes while attempting to list cluster zones: %v", err)
-	}
-
+func GetClusterZones(nodes *v1.NodeList) (sets.String, error) {
+	notfoundPartNodes := []string{}
 	// collect values of zone label from all nodes
 	zones := sets.NewString()
 	for _, node := range nodes.Items {
 		if zone, found := node.Labels[kubeletapis.LabelZoneFailureDomain]; found {
 			zones.Insert(zone)
+		} else {
+			notfoundPartNodes = append(notfoundPartNodes, node.Name)
 		}
+	}
+	if len(notfoundPartNodes) != 0 {
+		return zones, fmt.Errorf("zone name for node %v not found. No label with key %s", notfoundPartNodes, kubeletapis.LabelZoneFailureDomain)
 	}
 	return zones, nil
 }

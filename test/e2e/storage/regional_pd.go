@@ -110,10 +110,11 @@ func testVolumeProvisioning(c clientset.Interface, ns string) {
 				if err != nil {
 					return err
 				}
-				zones, err := framework.GetClusterZones(c)
+				nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
 				if err != nil {
-					return err
+					return fmt.Errorf("error getting nodes while attempting to list cluster zones: %v", err)
 				}
+				zones, _ := framework.GetClusterZones(nodes)
 				return verifyZonesInPV(volume, zones, false /* match */)
 			},
 		},
@@ -399,8 +400,9 @@ func newRegionalStorageClass(namespace string, zones []string) *storage.StorageC
 }
 
 func getTwoRandomZones(c clientset.Interface) []string {
-	zones, err := framework.GetClusterZones(c)
+	nodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{})
 	Expect(err).ToNot(HaveOccurred())
+	zones, _ := framework.GetClusterZones(nodes)
 	Expect(zones.Len()).To(BeNumerically(">=", 2),
 		"The test should only be run in multizone clusters.")
 

@@ -103,7 +103,10 @@ func TestCreatePatch(t *testing.T) {
 			t.Errorf("%s: createPatch returned err: %v", d, err)
 		}
 		obj := &v1.PersistentVolume{}
-		json.Unmarshal(patch, obj)
+		err = json.Unmarshal(patch, obj)
+		if err != nil {
+			t.Errorf("unmarshal patch failed err: %v", err)
+		}
 		if tc.labels != nil {
 			for k, v := range tc.labels {
 				if obj.ObjectMeta.Labels[k] != v {

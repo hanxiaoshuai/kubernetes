@@ -158,6 +158,9 @@ func TestGenerationNumber(t *testing.T) {
 	modifiedSno.Status.ObservedGeneration = 10
 	ctx := genericapirequest.NewDefaultContext()
 	rs, err := createReplicaSet(storage.ReplicaSet, modifiedSno, t)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 	etcdRS, err := storage.ReplicaSet.Get(ctx, rs.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

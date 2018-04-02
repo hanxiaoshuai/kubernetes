@@ -35,10 +35,13 @@ import (
 	registrytest "k8s.io/apiserver/pkg/registry/generic/testing"
 	"k8s.io/apiserver/pkg/registry/rest"
 	etcdtesting "k8s.io/apiserver/pkg/storage/etcd/testing"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
+	utilfeaturetesting "k8s.io/apiserver/pkg/util/feature/testing"
 	"k8s.io/client-go/discovery"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver"
+	"k8s.io/apiextensions-apiserver/pkg/features"
 	"k8s.io/apiextensions-apiserver/pkg/registry/customresource"
 	"k8s.io/apiextensions-apiserver/pkg/registry/customresource/tableconvertor"
 )
@@ -158,6 +161,64 @@ func TestDelete(t *testing.T) {
 	defer storage.CustomResource.Store.DestroyFunc()
 	test := registrytest.New(t, storage.CustomResource.Store)
 	test.TestDelete(validNewCustomResource())
+}
+
+func TestGeneration(t *testing.T) {
+	// enable alpha feature CustomResourceSubresources
+	defer utilfeaturetesting.SetFeatureGateDuringTest(t, utilfeature.DefaultFeatureGate, features.CustomResourceSubresources, true)()
+
+	storage, server := newStorage(t)
+	defer server.Terminate(t)
+	defer storage.CustomResource.Store.DestroyFunc()
+	modifiedRno := *validNewCustomResource()
+	modifiedRno.SetGeneration(10)
+	modifiedRno.SetObservedGeneration(10)
+	ctx := genericapirequest.NewDefaultContext()
+	cr, err := createCustomResource(storage.CustomResource, modifiedRno, t)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	etcdCR, err := storage.CustomResource.Get(ctx, cr.GetName(), &metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	storedCR, _ := etcdCR.(*unstructured.Unstructured)
+
+	// Generation initialization
+	if storedCR.GetGeneration() != 1 && storedCR.GetObservedGeneration() != 0 {
+		t.Fatalf("Unexpected generation number %v, status generation %v", storedCR.GetGeneration(), storedCR.GetObservedGeneration())
+	}
+
+	// Updates to spec should increment the generation number
+	storedCR.SetSpecReplicas(storedCR.GetSpecReplicas() + 1)
+	storage.CustomResource.Update(ctx, storedCR.GetName(), rest.DefaultUpdatedObjectInfo(storedCR), rest.ValidateAllObjectFunc, rest.ValidateAllObjectUpdateFunc)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	etcdCR, err = storage.CustomResource.Get(ctx, cr.GetName(), &metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	storedCR, _ = etcdCR.(*unstructured.Unstructured)
+	if storedCR.GetGeneration() != 2 || storedCR.GetObservedGeneration() != 0 {
+		t.Fatalf("Unexpected generation, spec: %v, status: %v", storedCR.GetGeneration(), storedCR.GetObservedGeneration())
+	}
+
+	// Updates to status should not increment either spec or status generation numbers
+	storedCR.SetStatusReplicas(storedCR.GetStatusReplicas() + 1)
+	storage.CustomResource.Update(ctx, storedCR.GetName(), rest.DefaultUpdatedObjectInfo(storedCR), rest.ValidateAllObjectFunc, rest.ValidateAllObjectUpdateFunc)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	etcdCR, err = storage.CustomResource.Get(ctx, cr.GetName(), &metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	storedCR, _ = etcdCR.(*unstructured.Unstructured)
+	if storedCR.GetGeneration() != 2 || storedCR.GetObservedGeneration() != 0 {
+		t.Fatalf("Unexpected generation, spec: %v, status: %v", storedCR.GetGeneration(), storedCR.GetObservedGeneration())
+	}
+
 }
 
 func TestCategories(t *testing.T) {

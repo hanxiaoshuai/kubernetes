@@ -158,6 +158,9 @@ func TestGenerationNumber(t *testing.T) {
 	modifiedSno.Status.ObservedGeneration = 10
 	ctx := genericapirequest.NewDefaultContext()
 	rs, err := createReplicaSet(storage.ReplicaSet, modifiedSno, t)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 	etcdRS, err := storage.ReplicaSet.Get(ctx, rs.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -165,7 +168,7 @@ func TestGenerationNumber(t *testing.T) {
 	storedRS, _ := etcdRS.(*extensions.ReplicaSet)
 
 	// Generation initialization
-	if storedRS.Generation != 1 && storedRS.Status.ObservedGeneration != 0 {
+	if storedRS.Generation != 1 || storedRS.Status.ObservedGeneration != 0 {
 		t.Fatalf("Unexpected generation number %v, status generation %v", storedRS.Generation, storedRS.Status.ObservedGeneration)
 	}
 

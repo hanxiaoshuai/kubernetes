@@ -239,6 +239,42 @@ func (u *Unstructured) SetGeneration(generation int64) {
 	u.setNestedField(generation, "metadata", "generation")
 }
 
+func (u *Unstructured) SetObservedGeneration(observedgeneration int64) {
+	u.setNestedField(observedgeneration, "status", "observedgeneration")
+}
+
+func (u *Unstructured) GetObservedGeneration() int64 {
+	val, found, err := NestedInt64(u.Object, "status", "observedgeneration")
+	if !found || err != nil {
+		return 0
+	}
+	return val
+}
+
+func (u *Unstructured) SetSpecReplicas(replicas int64) {
+	u.setNestedField(replicas, "spec", "replicas")
+}
+
+func (u *Unstructured) GetSpecReplicas() int64 {
+	val, found, err := NestedInt64(u.Object, "spec", "replicas")
+	if !found || err != nil {
+		return 0
+	}
+	return val
+}
+
+func (u *Unstructured) SetStatusReplicas(replicas int64) {
+	u.setNestedField(replicas, "status", "replicas")
+}
+
+func (u *Unstructured) GetStatusReplicas() int64 {
+	val, found, err := NestedInt64(u.Object, "status", "replicas")
+	if !found || err != nil {
+		return 0
+	}
+	return val
+}
+
 func (u *Unstructured) GetSelfLink() string {
 	return getNestedString(u.Object, "metadata", "selfLink")
 }

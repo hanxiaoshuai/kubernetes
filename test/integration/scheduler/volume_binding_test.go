@@ -35,6 +35,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"k8s.io/kubernetes/pkg/controller/volume/persistentvolume"
 )
 
@@ -227,12 +231,19 @@ func TestVolumeBinding(t *testing.T) {
 			}
 		}
 
-		// Validate PVC/PV binding
+		pod, _ := config.client.CoreV1().Pods(config.ns).Get(test.pod.Name, metav1.GetOptions{})
+		podevents, _ := config.client.CoreV1().Events(pod.Namespace).Search(legacyscheme.Scheme, pod)
+		for _, e := range podevents.Items {
+                    t.Logf("\n name=%s  ---------podevents=%v--------message=%s\n", name, e.Reason, e.Message)
+		}
+                // Validate PVC/PV binding
 		for _, pvc := range test.pvcs {
 			validatePVCPhase(t, config.client, pvc.name, config.ns, v1.ClaimBound)
+			validatePVCEvent(t, config.client, pvc.name, config.ns, v1.ClaimBound, name)
 		}
 		for _, pvc := range test.unboundPvcs {
 			validatePVCPhase(t, config.client, pvc.name, config.ns, v1.ClaimPending)
+			validatePVCEvent(t, config.client, pvc.name, config.ns, v1.ClaimPending, name)
 		}
 		for _, pv := range test.pvs {
 			validatePVPhase(t, config.client, pv.name, v1.VolumeBound)
@@ -375,6 +386,10 @@ func setupCluster(t *testing.T, nsName string, numberOfNodes int) *testConfig {
 	ns := context.ns.Name
 	informers := context.informerFactory
 
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartLogging(glog.Infof)
+	broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: clientset.CoreV1().Events("")})
+	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "test-persistentvolume-controller"})
 	// Start PV controller for volume binding.
 	params := persistentvolume.ControllerParameters{
 		KubeClient:                clientset,
@@ -386,7 +401,7 @@ func setupCluster(t *testing.T, nsName string, numberOfNodes int) *testConfig {
 		ClaimInformer:             informers.Core().V1().PersistentVolumeClaims(),
 		ClassInformer:             informers.Storage().V1().StorageClasses(),
 		PodInformer:               informers.Core().V1().Pods(),
-		EventRecorder:             nil, // TODO: add one so we can test PV events
+		EventRecorder:             eventRecorder,
 		EnableDynamicProvisioning: true,
 	}
 	ctrl, err := persistentvolume.NewController(params)
@@ -560,7 +575,7 @@ func makePod(name, ns string, pvcs []string) *v1.Pod {
 	}
 }
 
-func validatePVCPhase(t *testing.T, client clientset.Interface, pvcName string, ns string, phase v1.PersistentVolumeClaimPhase) {
+func validatePVCPhase(t *testing.T, client clientset.Interface, pvcName string, ns string, phase v1.PersistentVolumeClaimPhase ) {
 	claim, err := client.CoreV1().PersistentVolumeClaims(ns).Get(pvcName, metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("Failed to get PVC %v/%v: %v", ns, pvcName, err)
@@ -569,6 +584,19 @@ func validatePVCPhase(t *testing.T, client clientset.Interface, pvcName string, 
 	if claim.Status.Phase != phase {
 		t.Errorf("PVC %v/%v phase not %v, got %v", ns, pvcName, phase, claim.Status.Phase)
 	}
+}
+
+func validatePVCEvent(t *testing.T, client clientset.Interface, pvcName string, ns string, phase v1.PersistentVolumeClaimPhase, name string) {
+	claim, err := client.CoreV1().PersistentVolumeClaims(ns).Get(pvcName, metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("Failed to get PVC %v/%v: %v", ns, pvcName, err)
+	}
+
+	events, _ := client.CoreV1().Events(ns).Search(legacyscheme.Scheme, claim)
+        t.Logf("\n name=%s,phase=%s  ---------pvcevents=%v\n", name, phase, events)
+        for _, e := range events.Items {
+	    t.Logf("\n phase=%s  ---------pvcevents=%v--------message=%s\n", phase, e.Reason, e.Message)
+        }
 }
 
 func validatePVPhase(t *testing.T, client clientset.Interface, pvName string, phase v1.PersistentVolumePhase) {

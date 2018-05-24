@@ -527,36 +527,6 @@ func TestTemplateStrings(t *testing.T) {
 func TestPrinters(t *testing.T) {
 	om := func(name string) metav1.ObjectMeta { return metav1.ObjectMeta{Name: name} }
 
-	var (
-		err              error
-		templatePrinter  printers.ResourcePrinter
-		templatePrinter2 printers.ResourcePrinter
-		jsonpathPrinter  printers.ResourcePrinter
-	)
-
-	templatePrinter, err = printers.NewGoTemplatePrinter([]byte("{{.name}}"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	templatePrinter2, err = printers.NewGoTemplatePrinter([]byte("{{len .items}}"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	jsonpathPrinter, err = printers.NewJSONPathPrinter("{.metadata.name}")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	genericPrinters := map[string]printers.ResourcePrinter{
-		// TODO(juanvallejo): move "generic printer" tests to pkg/kubectl/genericclioptions/printers
-		"json":      genericprinters.NewTypeSetter(legacyscheme.Scheme).ToPrinter(&genericprinters.JSONPrinter{}),
-		"yaml":      genericprinters.NewTypeSetter(legacyscheme.Scheme).ToPrinter(&genericprinters.YAMLPrinter{}),
-		"template":  templatePrinter,
-		"template2": templatePrinter2,
-		"jsonpath":  jsonpathPrinter,
-	}
 	objects := map[string]runtime.Object{
 		"pod":             &v1.Pod{ObjectMeta: om("pod")},
 		"emptyPodList":    &v1.PodList{},
@@ -571,19 +541,6 @@ func TestPrinters(t *testing.T) {
 	expectedErrors := map[string]sets.String{
 		"template2": sets.NewString("pod", "emptyPodList", "endpoints"),
 		"jsonpath":  sets.NewString("emptyPodList", "nonEmptyPodList", "endpoints"),
-	}
-
-	for pName, p := range genericPrinters {
-		for oName, obj := range objects {
-			b := &bytes.Buffer{}
-			if err := p.PrintObj(obj, b); err != nil {
-				if set, found := expectedErrors[pName]; found && set.Has(oName) {
-					// expected error
-					continue
-				}
-				t.Errorf("printer '%v', object '%v'; error: '%v'", pName, oName, err)
-			}
-		}
 	}
 
 	// a humanreadable printer deals with internal-versioned objects

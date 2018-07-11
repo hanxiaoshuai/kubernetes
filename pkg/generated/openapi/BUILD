@@ -63,6 +63,7 @@ openapi_library(
         "k8s.io/apimachinery/pkg/version",
         "k8s.io/apiserver/pkg/apis/audit/v1alpha1",
         "k8s.io/apiserver/pkg/apis/audit/v1beta1",
+        "k8s.io/apiserver/pkg/apis/config/v1alpha1",
         "k8s.io/apiserver/pkg/apis/example/v1",
         "k8s.io/apiserver/pkg/apis/example2/v1",
         "k8s.io/client-go/pkg/apis/clientauthentication/v1alpha1",

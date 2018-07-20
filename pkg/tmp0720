@@ -1,0 +1,45 @@
+韩高帅(h00416848) 2018-07-20 16:14
+这个有啥教程，好的说明资料不？
+想要学习一下
+刘浩(l00316504) 2018-07-20 16:33
+稍等，高帅，我找一下哈
+特别简单包你一个小时搞定
+韩高帅(h00416848) 2018-07-20 16:33
+帮了大忙哈
+刘浩(l00316504) 2018-07-20 16:34
+http://chromedriver.storage.googleapis.com/index.html
+
+https://blog.csdn.net/trisyp/article/details/78688106
+
+https://blog.csdn.net/giiiig/article/details/75314806
+
+
+https://pypi.org/project/selenium/#description
+1.首先安装Python：
+    1.1 下载python安装包：https://www.python.org/downloads/
+    1.2 安装时勾设置环境变量；
+    1.3 在cmd下输入python，确认安装成功：
+                C:\Users\f00342552>python
+                Python 3.6.3 (v3.6.3:2c5fed8, Oct 3 2017, 18:11:49) [MSC v.1900 64 bit (AMD64)]
+                on win32
+                Type "help", "copyright", "credits" or "license" for more information.
+                >>>
+2.其次安装selenium：
+    2.1 下载selenium，下载地址：http://pypi.python.org/pypi/selenium
+    2.2 解压；
+    2.3 在CMD中的解压路径下执行命令： python setup.py install 
+3.安装Chrome插件：
+    安装包见附件chromedriver.zip
+    3.1 下载解压chromedriver.zip，你会得到一个 chromedriver.exe文件,放到chrome的安装目录下...\Google\Chrome\Application\ 
+    3.2 然后设置path环境变 量，把chrome的安装目录（例如：C:\Program Files\Google\Chrome\Application）添加到环境变量
+
+
+
+刘浩(l00316504) 2018-07-20 16:35
+恩
+我再给你个我写的，基本的点击，发送输入内容
+刘浩(l00316504) 2018-07-20 16:36
+选择元素的例子
+韩高帅(h00416848) 2018-07-20 16:36
+嗯嗯，好的
+
